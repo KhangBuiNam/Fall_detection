@@ -23,50 +23,42 @@ class AppProvider extends ChangeNotifier {
   // ── Sensor data ──
   SensorStatus _status = SensorStatus.empty();
   SensorHistory _history = SensorHistory.empty();
-  bool _loading = false;
 
   SensorStatus get status => _status;
   SensorHistory get history => _history;
-  bool get loading => _loading;
   String get baseUrl => _api.baseUrl;
   String get videoUrl => _api.videoStreamUrl;
 
-  // ── Polling timers ──
+  // ── Polling ──
   Timer? _statusTimer;
   Timer? _historyTimer;
 
-  // ── Alerts ──
-  String? _lastAlert;
+  // ── Alert dedup: tránh spam notification ──
+  String? _lastNotifiedAlert; // alert string lần cuối đã notify
+  int _lastNotifiedTs = 0; // timestamp lần cuối notify
 
-  // ─────────────────────────────────
+  // ────────────────────────────────────────
   // INIT
-  // ─────────────────────────────────
-
+  // ────────────────────────────────────────
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _loggedIn = prefs.getBool(kPrefIsLoggedIn) ?? false;
     _username = prefs.getString(kPrefUsername) ?? '';
-    final savedUrl = prefs.getString(kPrefBaseUrl) ?? '';
-    if (savedUrl.isNotEmpty) _api.baseUrl = savedUrl;
-
+    final saved = prefs.getString(kPrefBaseUrl) ?? '';
+    if (saved.isNotEmpty) _api.baseUrl = saved;
     if (_loggedIn) _startPolling();
     notifyListeners();
   }
 
-  // ─────────────────────────────────
+  // ────────────────────────────────────────
   // AUTH
-  // ─────────────────────────────────
-
+  // ────────────────────────────────────────
   Future<bool> login(String username, String password, String serverUrl) async {
-    if (username != kAdminUsername || password != kAdminPassword) {
-      return false;
-    }
+    if (username != kAdminUsername || password != kAdminPassword) return false;
 
     _api.baseUrl = serverUrl;
-
-    // Test connection
     final st = await _api.fetchStatus();
-    if (st == null) return false; // server unreachable
+    if (st == null) return false;
 
     _loggedIn = true;
     _username = username;
@@ -77,13 +69,6 @@ class AppProvider extends ChangeNotifier {
     await prefs.setString(kPrefUsername, username);
     await prefs.setString(kPrefBaseUrl, serverUrl);
 
-    // Register FCM token to server
-    final token = NotificationService.instance.fcmToken;
-    if (token != null) {
-      await _api.registerFcmToken(token);
-      await prefs.setString(kPrefFcmToken, token);
-    }
-
     _startPolling();
     notifyListeners();
     return true;
@@ -91,20 +76,15 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     _stopPolling();
-
-    // Unregister FCM token
+    await NotificationService.instance.cancelAll();
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(kPrefFcmToken);
-    if (token != null) await _api.unregisterFcmToken(token);
-
     await prefs.setBool(kPrefIsLoggedIn, false);
-    await prefs.remove(kPrefFcmToken);
-
     _loggedIn = false;
     _username = '';
     _connected = false;
     _status = SensorStatus.empty();
     _history = SensorHistory.empty();
+    _lastNotifiedAlert = null;
     notifyListeners();
   }
 
@@ -115,17 +95,14 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─────────────────────────────────
+  // ────────────────────────────────────────
   // POLLING
-  // ─────────────────────────────────
-
+  // ────────────────────────────────────────
   void _startPolling() {
     _statusTimer?.cancel();
     _historyTimer?.cancel();
-
     _statusTimer = Timer.periodic(kPollInterval, (_) => _pollStatus());
     _historyTimer = Timer.periodic(kHistoryInterval, (_) => _pollHistory());
-
     _pollStatus();
     _pollHistory();
   }
@@ -142,18 +119,30 @@ class AppProvider extends ChangeNotifier {
     } else {
       _connected = true;
 
-      // Trigger local notification if fall newly detected
+      // ── Trigger local notification ──
       if (st.fallDetected &&
-          (_lastAlert == null || _lastAlert != st.alert) &&
           (st.alert == 'WARNING' || st.alert == 'CRITICAL')) {
-        _lastAlert = st.alert;
-        NotificationService.instance.showLocalNotification(
-          title:
-              st.alert == 'CRITICAL' ? '🚨 CRITICAL FALL!' : '⚠️ Fall Warning',
-          body: 'HR: ${st.heartRate} bpm | SpO2: ${st.spo2}% | ${st.alert}',
-        );
+        final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        // Notify nếu: alert mới khác lần trước HOẶC đã qua 30s cooldown
+        final newAlert = st.alert != _lastNotifiedAlert;
+        final cooldownOk = (now - _lastNotifiedTs) >= 30;
+
+        if (newAlert || cooldownOk) {
+          _lastNotifiedAlert = st.alert;
+          _lastNotifiedTs = now;
+
+          final isCritical = st.alert == 'CRITICAL';
+          NotificationService.instance.showAlert(
+            id: isCritical ? 1 : 2,
+            title:
+                isCritical ? '🚨 TÉ NGÃ NGHIÊM TRỌNG!' : '⚠️ Phát hiện té ngã',
+            body:
+                'HR: ${st.heartRate} bpm  |  SpO2: ${st.spo2}%  |  ${st.alert}',
+          );
+        }
       } else if (!st.fallDetected) {
-        _lastAlert = null;
+        // Reset dedup khi trở về bình thường
+        _lastNotifiedAlert = null;
       }
 
       _status = st;

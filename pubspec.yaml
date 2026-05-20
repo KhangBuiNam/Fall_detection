@@ -11,26 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # HTTP & API
   http: ^1.2.1
-
-  # State management
   provider: ^6.1.2
-
-  # Local storage
   shared_preferences: ^2.2.3
-
-  # Firebase & Push Notification
-  firebase_core: ^3.3.0
-  firebase_messaging: ^15.1.0
-  flutter_local_notifications: ^17.2.2
-
-  # Charts
   fl_chart: ^0.68.0
-
-  # Icons
   cupertino_icons: ^1.0.6
-  mjpeg_stream: ^1.0.1
+  flutter_local_notifications: ^17.2.2
 
 dev_dependencies:
   flutter_test:

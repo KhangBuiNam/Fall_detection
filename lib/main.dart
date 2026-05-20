@@ -1,7 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'core/app_theme.dart';
 import 'providers/app_provider.dart';
@@ -12,16 +11,12 @@ import 'screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Lock to portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Firebase
-  await Firebase.initializeApp();
-
-  // Notifications (FCM + local)
+  // Local notification — không cần Firebase
   await NotificationService.instance.init();
 
   runApp(
