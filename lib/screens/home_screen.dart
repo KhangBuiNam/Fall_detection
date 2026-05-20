@@ -1,12 +1,12 @@
 // lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/app_theme.dart';
-import '../../providers/app_provider.dart';
+import '../core/app_theme.dart';
+import '../providers/app_provider.dart';
 import 'dashboard_screen.dart';
 import 'chart_screen.dart';
-import '../video_screen.dart';
-import '../settings_screen.dart';
+import 'video_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

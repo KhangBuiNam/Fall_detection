@@ -2,9 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
-import '../../core/app_theme.dart';
-import '../../providers/app_provider.dart';
-import '../../models/sensor_data.dart';
+import '../core/app_theme.dart';
+import '../providers/app_provider.dart';
+import '../models/sensor_data.dart';
 
 class ChartScreen extends StatelessWidget {
   const ChartScreen({super.key});

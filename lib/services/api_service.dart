@@ -1,7 +1,7 @@
 // lib/services/api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../models/sensor_data.dart';
+import '/models/sensor_data.dart';
 
 class ApiService {
   String _baseUrl = '';

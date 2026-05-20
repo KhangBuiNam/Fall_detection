@@ -1,9 +1,9 @@
 // lib/screens/dashboard_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/app_theme.dart';
-import '../../providers/app_provider.dart';
-import '../../models/sensor_data.dart';
+import '../core/app_theme.dart';
+import '../providers/app_provider.dart';
+import '../models/sensor_data.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
