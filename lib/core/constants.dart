@@ -3,10 +3,11 @@
 const String kPrefBaseUrl = 'base_url';
 const String kPrefIsLoggedIn = 'is_logged_in';
 const String kPrefUsername = 'username';
+const String kPrefPassword = 'password'; // lưu password đã hash
 
-// Credentials — đổi trước khi build production
-const String kAdminUsername = 'admin';
-const String kAdminPassword = '123456789';
+// Default credentials — chỉ dùng lần đầu cài app, sau đó đọc từ SharedPreferences
+const String kDefaultUsername = 'caregiver';
+const String kDefaultPassword = 'falldetect2024';
 
 // Polling interval
 const Duration kPollInterval = Duration(seconds: 2);

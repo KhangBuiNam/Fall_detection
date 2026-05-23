@@ -5,10 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../models/sensor_data.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 
 class AppProvider extends ChangeNotifier {
   final ApiService _api = ApiService();
+  final AuthService _auth = AuthService.instance;
 
   // ── Auth ──
   bool _loggedIn = false;
@@ -33,9 +35,9 @@ class AppProvider extends ChangeNotifier {
   Timer? _statusTimer;
   Timer? _historyTimer;
 
-  // ── Alert dedup: tránh spam notification ──
-  String? _lastNotifiedAlert; // alert string lần cuối đã notify
-  int _lastNotifiedTs = 0; // timestamp lần cuối notify
+  // ── Alert dedup ──
+  String? _lastNotifiedAlert;
+  int _lastNotifiedTs = 0;
 
   // ────────────────────────────────────────
   // INIT
@@ -43,7 +45,7 @@ class AppProvider extends ChangeNotifier {
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _loggedIn = prefs.getBool(kPrefIsLoggedIn) ?? false;
-    _username = prefs.getString(kPrefUsername) ?? '';
+    _username = await _auth.getUsername();
     final saved = prefs.getString(kPrefBaseUrl) ?? '';
     if (saved.isNotEmpty) _api.baseUrl = saved;
     if (_loggedIn) _startPolling();
@@ -54,7 +56,9 @@ class AppProvider extends ChangeNotifier {
   // AUTH
   // ────────────────────────────────────────
   Future<bool> login(String username, String password, String serverUrl) async {
-    if (username != kAdminUsername || password != kAdminPassword) return false;
+    // Kiểm tra credentials từ SharedPreferences (không phải hardcode)
+    final ok = await _auth.checkCredentials(username, password);
+    if (!ok) return false;
 
     _api.baseUrl = serverUrl;
     final st = await _api.fetchStatus();
@@ -66,7 +70,6 @@ class AppProvider extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kPrefIsLoggedIn, true);
-    await prefs.setString(kPrefUsername, username);
     await prefs.setString(kPrefBaseUrl, serverUrl);
 
     _startPolling();
@@ -85,6 +88,12 @@ class AppProvider extends ChangeNotifier {
     _status = SensorStatus.empty();
     _history = SensorHistory.empty();
     _lastNotifiedAlert = null;
+    notifyListeners();
+  }
+
+  // Gọi sau khi đổi username để cập nhật display
+  Future<void> refreshUsername() async {
+    _username = await _auth.getUsername();
     notifyListeners();
   }
 
@@ -118,33 +127,25 @@ class AppProvider extends ChangeNotifier {
       _connected = false;
     } else {
       _connected = true;
-
-      // ── Trigger local notification ──
       if (st.fallDetected &&
           (st.alert == 'WARNING' || st.alert == 'CRITICAL')) {
         final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        // Notify nếu: alert mới khác lần trước HOẶC đã qua 30s cooldown
         final newAlert = st.alert != _lastNotifiedAlert;
-        final cooldownOk = (now - _lastNotifiedTs) >= 30;
-
-        if (newAlert || cooldownOk) {
+        final cooldown = (now - _lastNotifiedTs) >= 30;
+        if (newAlert || cooldown) {
           _lastNotifiedAlert = st.alert;
           _lastNotifiedTs = now;
-
-          final isCritical = st.alert == 'CRITICAL';
+          final crit = st.alert == 'CRITICAL';
           NotificationService.instance.showAlert(
-            id: isCritical ? 1 : 2,
-            title:
-                isCritical ? '🚨 TÉ NGÃ NGHIÊM TRỌNG!' : '⚠️ Phát hiện té ngã',
+            id: crit ? 1 : 2,
+            title: crit ? '🚨 TÉ NGÃ NGHIÊM TRỌNG!' : '⚠️ Phát hiện té ngã',
             body:
                 'HR: ${st.heartRate} bpm  |  SpO2: ${st.spo2}%  |  ${st.alert}',
           );
         }
       } else if (!st.fallDetected) {
-        // Reset dedup khi trở về bình thường
         _lastNotifiedAlert = null;
       }
-
       _status = st;
     }
     notifyListeners();

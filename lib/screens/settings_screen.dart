@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/app_theme.dart';
 import '../providers/app_provider.dart';
+import 'change_password_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -93,60 +94,119 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
-          // ── Account Card ──
+          // ── Account ──
           _SectionHeader(title: 'Account'),
           _Card(
-            child: Row(
+            child: Column(
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      prov.username.isNotEmpty
-                          ? prov.username[0].toUpperCase()
-                          : 'C',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 20),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // Avatar + info row
+                Row(
                   children: [
-                    Text(prov.username,
-                        style: const TextStyle(
-                            color: AppTheme.textPrim,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16)),
-                    const SizedBox(height: 2),
-                    const Text('Caregiver',
-                        style:
-                            TextStyle(color: AppTheme.textSec, fontSize: 12)),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF00C6FF), Color(0xFF0072FF)],
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          prov.username.isNotEmpty
+                              ? prov.username[0].toUpperCase()
+                              : 'C',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 20),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(prov.username,
+                            style: const TextStyle(
+                                color: AppTheme.textPrim,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16)),
+                        const SizedBox(height: 2),
+                        const Text('Caregiver',
+                            style: TextStyle(
+                                color: AppTheme.textSec, fontSize: 12)),
+                      ],
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.normal.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Active',
+                          style: TextStyle(
+                              color: AppTheme.normal,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ),
                   ],
                 ),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppTheme.normal.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                // Divider
+                Divider(height: 1, color: AppTheme.textSec.withOpacity(0.1)),
+                const SizedBox(height: 4),
+                // Change account row — tappable
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ChangePasswordScreen(),
+                      ),
+                    );
+                    // Refresh username sau khi đổi
+                    if (context.mounted) {
+                      await context.read<AppProvider>().refreshUsername();
+                    }
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            color: AppTheme.accent.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.manage_accounts_rounded,
+                              color: AppTheme.accent, size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Change Username & Password',
+                                style: TextStyle(
+                                    color: AppTheme.textPrim,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500)),
+                            Text('Update your login credentials',
+                                style: TextStyle(
+                                    color: AppTheme.textSec, fontSize: 11)),
+                          ],
+                        ),
+                        const Spacer(),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: AppTheme.textSec, size: 20),
+                      ],
+                    ),
                   ),
-                  child: const Text('Active',
-                      style: TextStyle(
-                          color: AppTheme.normal,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -314,7 +374,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ── Notification Info ──
+          // ── Notification ──
           _SectionHeader(title: 'Notifications'),
           _Card(
             child: Column(
@@ -322,28 +382,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _SettingRow(
                   icon: Icons.notifications_active_rounded,
                   iconColor: AppTheme.accent,
-                  title: 'Push Notifications',
-                  subtitle: 'Firebase Cloud Messaging (FCM)',
-                  trailing: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.normal.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('Enabled',
-                        style: TextStyle(
-                            color: AppTheme.normal,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600)),
-                  ),
+                  title: 'Local Notifications',
+                  subtitle: 'Alerts when fall is detected (app open)',
+                  trailing: _Badge('Enabled', AppTheme.normal),
                 ),
                 _Divider(),
                 _SettingRow(
                   icon: Icons.alarm_rounded,
                   iconColor: AppTheme.warning,
                   title: 'Alert Cooldown',
-                  subtitle: 'Min 30s between push alerts',
+                  subtitle: 'Min 30s between notifications',
                   trailing: const Text('30s',
                       style: TextStyle(color: AppTheme.textSec, fontSize: 13)),
                 ),
@@ -379,7 +427,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 20),
 
-          // ── App Info ──
+          // ── About ──
           _SectionHeader(title: 'About'),
           _Card(
             child: Column(
@@ -436,7 +484,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 class _SectionHeader extends StatelessWidget {
   final String title;
   const _SectionHeader({required this.title});
-
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(left: 4, bottom: 8),
@@ -452,7 +499,6 @@ class _SectionHeader extends StatelessWidget {
 class _Card extends StatelessWidget {
   final Widget child;
   const _Card({required this.child});
-
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.all(16),
@@ -471,6 +517,23 @@ class _Divider extends StatelessWidget {
         height: 20,
         thickness: 1,
         color: AppTheme.textSec.withOpacity(0.1),
+      );
+}
+
+class _Badge extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _Badge(this.text, this.color);
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(text,
+            style: TextStyle(
+                color: color, fontSize: 11, fontWeight: FontWeight.w600)),
       );
 }
 
