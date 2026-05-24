@@ -15,27 +15,30 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _urlCtrl;
+  late TextEditingController _mediaCtrl;
   bool _urlEditing = false;
+  bool _mediaEditing = false;
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _urlCtrl = TextEditingController(
-      text: context.read<AppProvider>().baseUrl,
-    );
+    final prov = context.read<AppProvider>();
+    _urlCtrl = TextEditingController(text: prov.baseUrl);
+    _mediaCtrl = TextEditingController(text: prov.mediaUrl);
   }
 
   @override
   void dispose() {
     _urlCtrl.dispose();
+    _mediaCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _saveUrl() async {
     final url = _urlCtrl.text.trim();
     if (url.isEmpty || !url.startsWith('http')) {
-      _showSnack('Invalid URL — must start with http(s)://', error: true);
+      _showSnack('Invalid URL — must start with http://', error: true);
       return;
     }
     setState(() => _saving = true);
@@ -44,7 +47,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _saving = false;
       _urlEditing = false;
     });
-    _showSnack('Server URL updated ✓');
+    _showSnack('Flask API URL updated ✓');
+  }
+
+  Future<void> _saveMediaUrl() async {
+    final url = _mediaCtrl.text.trim();
+    if (url.isEmpty || !url.startsWith('http')) {
+      _showSnack('Invalid URL — must start with http://', error: true);
+      return;
+    }
+    setState(() => _saving = true);
+    await context.read<AppProvider>().updateMediaUrl(url);
+    setState(() {
+      _saving = false;
+      _mediaEditing = false;
+    });
+    _showSnack('MediaMTX URL updated ✓');
   }
 
   void _showSnack(String msg, {bool error = false}) {

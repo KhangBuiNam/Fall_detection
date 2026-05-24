@@ -1,11 +1,12 @@
 // lib/core/constants.dart
 
 const String kPrefBaseUrl = 'base_url';
+const String kPrefMediaUrl = 'media_url'; // MediaMTX Tailscale URL
 const String kPrefIsLoggedIn = 'is_logged_in';
 const String kPrefUsername = 'username';
-const String kPrefPassword = 'password'; // lưu password đã hash
+const String kPrefPassword = 'password';
 
-// Default credentials — chỉ dùng lần đầu cài app, sau đó đọc từ SharedPreferences
+// Default credentials
 const String kDefaultUsername = 'caregiver';
 const String kDefaultPassword = 'falldetect2024';
 

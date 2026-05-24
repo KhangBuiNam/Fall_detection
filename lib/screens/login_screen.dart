@@ -6,7 +6,6 @@ import '../providers/app_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -16,7 +15,9 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _userCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  final _urlCtrl = TextEditingController();
+  final _serverCtrl = TextEditingController();
+  final _mediaCtrl = TextEditingController();
+
   bool _obscure = true;
   bool _loading = false;
   String? _error;
@@ -36,9 +37,9 @@ class _LoginScreenState extends State<LoginScreen>
             CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
 
-    // Pre-fill last saved URL
     final prov = context.read<AppProvider>();
-    if (prov.baseUrl.isNotEmpty) _urlCtrl.text = prov.baseUrl;
+    if (prov.baseUrl.isNotEmpty) _serverCtrl.text = prov.baseUrl;
+    if (prov.mediaUrl.isNotEmpty) _mediaCtrl.text = prov.mediaUrl;
   }
 
   @override
@@ -46,7 +47,8 @@ class _LoginScreenState extends State<LoginScreen>
     _animCtrl.dispose();
     _userCtrl.dispose();
     _passCtrl.dispose();
-    _urlCtrl.dispose();
+    _serverCtrl.dispose();
+    _mediaCtrl.dispose();
     super.dispose();
   }
 
@@ -60,19 +62,15 @@ class _LoginScreenState extends State<LoginScreen>
     final ok = await context.read<AppProvider>().login(
           _userCtrl.text.trim(),
           _passCtrl.text,
-          _urlCtrl.text.trim(),
+          _serverCtrl.text.trim(),
+          _mediaCtrl.text.trim(),
         );
 
     if (!mounted) return;
-    setState(() {
-      _loading = false;
-    });
-
+    setState(() => _loading = false);
     if (!ok) {
-      setState(() {
-        _error =
-            'Invalid credentials or server unreachable.\nCheck URL & try again.';
-      });
+      setState(() => _error =
+          'Invalid credentials or server unreachable.\nCheck URLs & try again.');
     }
   }
 
@@ -100,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logo / Icon
+                        // Logo
                         Container(
                           width: 80,
                           height: 80,
@@ -121,7 +119,6 @@ class _LoginScreenState extends State<LoginScreen>
                               size: 44, color: Colors.white),
                         ),
                         const SizedBox(height: 20),
-
                         Text('CareWatch',
                             style: Theme.of(context)
                                 .textTheme
@@ -129,7 +126,6 @@ class _LoginScreenState extends State<LoginScreen>
                                 ?.copyWith(
                                   color: AppTheme.textPrim,
                                   fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
                                 )),
                         const SizedBox(height: 6),
                         Text('Patient Monitoring System',
@@ -137,34 +133,53 @@ class _LoginScreenState extends State<LoginScreen>
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(color: AppTheme.textSec)),
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 36),
 
-                        // Card
                         Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
                             color: AppTheme.card,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                                color: AppTheme.accent.withOpacity(0.15),
-                                width: 1),
+                                color: AppTheme.accent.withOpacity(0.15)),
                           ),
                           child: Column(
                             children: [
+                              // ── Server URLs section ──
+                              _label('Server URLs'),
+                              const SizedBox(height: 10),
                               _buildField(
-                                controller: _urlCtrl,
-                                label: 'Server URL (ngrok)',
-                                hint: 'https://xxxx.ngrok-free.app',
+                                controller: _serverCtrl,
+                                label: 'Flask API URL (Tailscale)',
+                                hint: 'http://100.x.x.x:5000',
                                 icon: Icons.dns_rounded,
                                 validator: (v) {
                                   if (v == null || v.isEmpty)
-                                    return 'Enter server URL';
+                                    return 'Enter API URL';
                                   if (!v.startsWith('http'))
-                                    return 'Must start with http(s)://';
+                                    return 'Must start with http://';
                                   return null;
                                 },
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
+                              _buildField(
+                                controller: _mediaCtrl,
+                                label: 'MediaMTX URL (Tailscale)',
+                                hint: 'http://100.x.x.x:8889',
+                                icon: Icons.videocam_rounded,
+                                validator: (v) {
+                                  if (v == null || v.isEmpty)
+                                    return 'Enter MediaMTX URL';
+                                  if (!v.startsWith('http'))
+                                    return 'Must start with http://';
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 20),
+
+                              // ── Credentials section ──
+                              _label('Credentials'),
+                              const SizedBox(height: 10),
                               _buildField(
                                 controller: _userCtrl,
                                 label: 'Username',
@@ -174,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     ? 'Enter username'
                                     : null,
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 12),
                               _buildField(
                                 controller: _passCtrl,
                                 label: 'Password',
@@ -195,6 +210,8 @@ class _LoginScreenState extends State<LoginScreen>
                                     ? 'Enter password'
                                     : null,
                               ),
+
+                              // Error
                               if (_error != null) ...[
                                 const SizedBox(height: 14),
                                 Container(
@@ -222,6 +239,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ],
                               const SizedBox(height: 24),
+
+                              // Sign in button
                               SizedBox(
                                 width: double.infinity,
                                 height: 52,
@@ -271,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
                         const SizedBox(height: 24),
-                        Text('Secured monitoring for caregivers',
+                        Text('WebRTC · MediaMTX · Tailscale',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall
@@ -288,6 +307,16 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
+  Widget _label(String text) => Align(
+        alignment: Alignment.centerLeft,
+        child: Text(text.toUpperCase(),
+            style: const TextStyle(
+                color: AppTheme.textSec,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2)),
+      );
+
   Widget _buildField({
     required TextEditingController controller,
     required String label,
@@ -296,34 +325,33 @@ class _LoginScreenState extends State<LoginScreen>
     bool obscure = false,
     Widget? suffix,
     String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscure,
-      style: const TextStyle(color: AppTheme.textPrim, fontSize: 15),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        hintStyle: const TextStyle(color: AppTheme.textSec, fontSize: 13),
-        labelStyle: const TextStyle(color: AppTheme.textSec, fontSize: 13),
-        prefixIcon: Icon(icon, color: AppTheme.accent, size: 20),
-        suffixIcon: suffix,
-        filled: true,
-        fillColor: AppTheme.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+  }) =>
+      TextFormField(
+        controller: controller,
+        obscureText: obscure,
+        style: const TextStyle(color: AppTheme.textPrim, fontSize: 15),
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+          hintStyle: const TextStyle(color: AppTheme.textSec, fontSize: 13),
+          labelStyle: const TextStyle(color: AppTheme.textSec, fontSize: 13),
+          prefixIcon: Icon(icon, color: AppTheme.accent, size: 20),
+          suffixIcon: suffix,
+          filled: true,
+          fillColor: AppTheme.surface,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                BorderSide(color: AppTheme.accent.withOpacity(0.7), width: 1.5),
+          ),
+          errorStyle: const TextStyle(color: AppTheme.critical, fontSize: 11),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide:
-              BorderSide(color: AppTheme.accent.withOpacity(0.7), width: 1.5),
-        ),
-        errorStyle: const TextStyle(color: AppTheme.critical, fontSize: 11),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-      ),
-      validator: validator,
-    );
-  }
+        validator: validator,
+      );
 }

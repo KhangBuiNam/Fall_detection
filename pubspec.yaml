@@ -18,6 +18,9 @@ dependencies:
   cupertino_icons: ^1.0.6
   flutter_local_notifications: ^17.2.2
 
+  # WebRTC — stream từ MediaMTX qua WHEP
+  flutter_webrtc: ^0.14.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

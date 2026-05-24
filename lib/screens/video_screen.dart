@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/app_theme.dart';
 import '../providers/app_provider.dart';
-import '../widgets/mjpeg_view.dart';
+import '../widgets/webrtc_view.dart';
 
 class VideoScreen extends StatefulWidget {
   const VideoScreen({super.key});
@@ -35,7 +35,6 @@ class _VideoScreenState extends State<VideoScreen> {
 
   @override
   void dispose() {
-    // Restore portrait when leaving screen
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -47,8 +46,8 @@ class _VideoScreenState extends State<VideoScreen> {
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<AppProvider>();
-    final url = prov.videoUrl;
     final status = prov.status;
+    final whep = prov.whepUrl;
 
     if (_fullscreen) {
       return Scaffold(
@@ -57,11 +56,7 @@ class _VideoScreenState extends State<VideoScreen> {
           onTap: _toggleFullscreen,
           child: Stack(
             children: [
-              Center(
-                child: url.isEmpty
-                    ? _noUrl()
-                    : MjpegView(streamUrl: url, fit: BoxFit.contain),
-              ),
+              Center(child: WebRtcView(whepUrl: whep)),
               // Exit hint
               Positioned(
                 top: 16,
@@ -76,7 +71,6 @@ class _VideoScreenState extends State<VideoScreen> {
                       color: Colors.white70, size: 22),
                 ),
               ),
-              // Alert overlay
               if (status.fallDetected)
                 Positioned(
                   top: 16,
@@ -93,7 +87,7 @@ class _VideoScreenState extends State<VideoScreen> {
       appBar: AppBar(
         title: const Text('Camera Live'),
         actions: [
-          if (url.isNotEmpty)
+          if (prov.isMediaConfigured)
             IconButton(
               icon: const Icon(Icons.fullscreen_rounded),
               onPressed: _toggleFullscreen,
@@ -104,7 +98,7 @@ class _VideoScreenState extends State<VideoScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         children: [
-          // Stream card
+          // ── Video card ──
           Container(
             decoration: BoxDecoration(
               color: Colors.black,
@@ -114,50 +108,70 @@ class _VideoScreenState extends State<VideoScreen> {
                     ? (status.alert == 'CRITICAL'
                             ? AppTheme.critical
                             : AppTheme.warning)
-                        .withOpacity(0.6)
+                        .withOpacity(0.7)
                     : AppTheme.accent.withOpacity(0.15),
                 width: 1.5,
               ),
             ),
             clipBehavior: Clip.hardEdge,
             child: AspectRatio(
-              aspectRatio: 4 / 3,
-              child: url.isEmpty
-                  ? _noUrl()
-                  : Stack(
-                      children: [
-                        MjpegView(streamUrl: url, fit: BoxFit.cover),
-                        // Alert overlay on video
-                        if (status.fallDetected)
-                          Positioned(
-                            top: 10,
-                            left: 10,
-                            child: _AlertChip(alert: status.alert),
-                          ),
-                        // Fullscreen button overlay
-                        Positioned(
-                          bottom: 10,
-                          right: 10,
-                          child: GestureDetector(
-                            onTap: _toggleFullscreen,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.fullscreen,
-                                  color: Colors.white70, size: 20),
-                            ),
-                          ),
-                        ),
-                      ],
+              aspectRatio: 16 / 9,
+              child: Stack(
+                children: [
+                  WebRtcView(whepUrl: whep),
+                  if (status.fallDetected)
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: _AlertChip(alert: status.alert),
                     ),
+                  // Fullscreen button
+                  Positioned(
+                    bottom: 10,
+                    right: 10,
+                    child: GestureDetector(
+                      onTap: _toggleFullscreen,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.fullscreen,
+                            color: Colors.white70, size: 20),
+                      ),
+                    ),
+                  ),
+                  // WebRTC badge
+                  Positioned(
+                    bottom: 10,
+                    left: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.circle, color: Color(0xFF30D158), size: 7),
+                          SizedBox(width: 5),
+                          Text('WebRTC · MediaMTX',
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 10)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 14),
 
-          // Status row
+          // ── Connection info ──
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -165,89 +179,132 @@ class _VideoScreenState extends State<VideoScreen> {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppTheme.accent.withOpacity(0.1)),
             ),
-            child: Row(
+            child: Column(
               children: [
-                // Live indicator
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: url.isEmpty ? AppTheme.critical : AppTheme.normal,
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            (url.isEmpty ? AppTheme.critical : AppTheme.normal)
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: prov.isMediaConfigured
+                            ? AppTheme.normal
+                            : AppTheme.critical,
+                        boxShadow: [
+                          BoxShadow(
+                            color: (prov.isMediaConfigured
+                                    ? AppTheme.normal
+                                    : AppTheme.critical)
                                 .withOpacity(0.5),
-                        blurRadius: 6,
-                      )
-                    ],
+                            blurRadius: 6,
+                          )
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Text('WHEP Endpoint',
+                        style:
+                            TextStyle(color: AppTheme.textSec, fontSize: 12)),
+                    const Spacer(),
+                    Text('MediaMTX :8889',
+                        style: const TextStyle(
+                            color: AppTheme.textSec, fontSize: 11)),
+                  ],
+                ),
+                if (whep.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            whep,
+                            style: const TextStyle(
+                                color: AppTheme.textSec,
+                                fontSize: 11,
+                                fontFamily: 'monospace'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Clipboard.setData(ClipboardData(text: whep));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: const Text('WHEP URL copied'),
+                                backgroundColor: AppTheme.normal,
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                              ),
+                            );
+                          },
+                          child: const Icon(Icons.copy_rounded,
+                              color: AppTheme.textSec, size: 14),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  url.isEmpty ? 'No server URL configured' : 'MJPEG Stream',
-                  style: const TextStyle(color: AppTheme.textSec, fontSize: 12),
-                ),
-                const Spacer(),
-                Text('320×240 · MJPEG',
-                    style:
-                        const TextStyle(color: AppTheme.textSec, fontSize: 11)),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 14),
 
-          // Vitals quick view
+          // ── Quick vitals ──
           Row(
             children: [
               Expanded(
-                child: _QuickStat(
-                  label: 'Heart Rate',
-                  value: '${status.heartRate}',
-                  unit: 'bpm',
-                  color: AppTheme.hrLine,
-                ),
-              ),
+                  child: _QuickStat(
+                label: 'Heart Rate',
+                value: '${status.heartRate}',
+                unit: 'bpm',
+                color: AppTheme.hrLine,
+              )),
               const SizedBox(width: 10),
               Expanded(
-                child: _QuickStat(
-                  label: 'SpO2',
-                  value: '${status.spo2}',
-                  unit: '%',
-                  color: AppTheme.spo2Line,
-                ),
-              ),
+                  child: _QuickStat(
+                label: 'SpO2',
+                value: '${status.spo2}',
+                unit: '%',
+                color: AppTheme.spo2Line,
+              )),
               const SizedBox(width: 10),
               Expanded(
-                child: _QuickStat(
-                  label: 'State',
-                  value: status.state,
-                  unit: '',
-                  color: AppTheme.accent,
-                  small: true,
-                ),
-              ),
+                  child: _QuickStat(
+                label: 'State',
+                value: status.state,
+                unit: '',
+                color: AppTheme.accent,
+                small: true,
+              )),
             ],
           ),
 
-          if (url.isEmpty) ...[
-            const SizedBox(height: 20),
+          // ── Warning nếu chưa config ──
+          if (!prov.isMediaConfigured) ...[
+            const SizedBox(height: 16),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: AppTheme.warning.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
               ),
-              child: Row(
+              child: const Row(
                 children: [
-                  const Icon(Icons.info_outline,
-                      color: AppTheme.warning, size: 20),
-                  const SizedBox(width: 10),
-                  const Expanded(
+                  Icon(Icons.info_outline, color: AppTheme.warning, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
                     child: Text(
-                      'Go to Settings and enter your ngrok server URL to start streaming.',
+                      'Go to Settings → enter MediaMTX URL\n(e.g. http://100.x.x.x:8889)',
                       style: TextStyle(color: AppTheme.warning, fontSize: 12),
                     ),
                   ),
@@ -259,21 +316,9 @@ class _VideoScreenState extends State<VideoScreen> {
       ),
     );
   }
-
-  Widget _noUrl() {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.cloud_off_rounded, color: AppTheme.textSec, size: 48),
-          SizedBox(height: 12),
-          Text('No server URL configured',
-              style: TextStyle(color: AppTheme.textSec, fontSize: 13)),
-        ],
-      ),
-    );
-  }
 }
+
+// ─── Helper widgets ───
 
 class _AlertChip extends StatelessWidget {
   final String alert;
@@ -308,6 +353,7 @@ class _QuickStat extends StatelessWidget {
   final String label, value, unit;
   final Color color;
   final bool small;
+
   const _QuickStat({
     required this.label,
     required this.value,
@@ -317,32 +363,30 @@ class _QuickStat extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Text(label,
-              style: const TextStyle(color: AppTheme.textSec, fontSize: 10)),
-          const SizedBox(height: 4),
-          Text(
-            value == '0' ? '--' : value,
-            style: TextStyle(
-              color: color,
-              fontSize: small ? 13 : 20,
-              fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.card,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Text(label,
+                style: const TextStyle(color: AppTheme.textSec, fontSize: 10)),
+            const SizedBox(height: 4),
+            Text(
+              value == '0' ? '--' : value,
+              style: TextStyle(
+                  color: color,
+                  fontSize: small ? 13 : 20,
+                  fontWeight: FontWeight.w700),
             ),
-          ),
-          if (unit.isNotEmpty)
-            Text(unit,
-                style: TextStyle(color: color.withOpacity(0.7), fontSize: 10)),
-        ],
-      ),
-    );
-  }
+            if (unit.isNotEmpty)
+              Text(unit,
+                  style:
+                      TextStyle(color: color.withOpacity(0.7), fontSize: 10)),
+          ],
+        ),
+      );
 }

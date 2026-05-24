@@ -12,30 +12,28 @@ class AppProvider extends ChangeNotifier {
   final ApiService _api = ApiService();
   final AuthService _auth = AuthService.instance;
 
-  // ── Auth ──
   bool _loggedIn = false;
   String _username = '';
-  bool get loggedIn => _loggedIn;
-  String get username => _username;
-
-  // ── Connection ──
   bool _connected = false;
-  bool get connected => _connected;
 
-  // ── Sensor data ──
   SensorStatus _status = SensorStatus.empty();
   SensorHistory _history = SensorHistory.empty();
 
+  bool get loggedIn => _loggedIn;
+  String get username => _username;
+  bool get connected => _connected;
+
   SensorStatus get status => _status;
   SensorHistory get history => _history;
-  String get baseUrl => _api.baseUrl;
-  String get videoUrl => _api.videoStreamUrl;
 
-  // ── Polling ──
+  String get baseUrl => _api.baseUrl;
+  String get mediaUrl => _api.mediaUrl;
+  String get whepUrl => _api.whepUrl;
+  bool get isMediaConfigured => _api.isMediaConfigured;
+
   Timer? _statusTimer;
   Timer? _historyTimer;
 
-  // ── Alert dedup ──
   String? _lastNotifiedAlert;
   int _lastNotifiedTs = 0;
 
@@ -46,8 +44,12 @@ class AppProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _loggedIn = prefs.getBool(kPrefIsLoggedIn) ?? false;
     _username = await _auth.getUsername();
-    final saved = prefs.getString(kPrefBaseUrl) ?? '';
-    if (saved.isNotEmpty) _api.baseUrl = saved;
+
+    final savedBase = prefs.getString(kPrefBaseUrl) ?? '';
+    final savedMedia = prefs.getString(kPrefMediaUrl) ?? '';
+    if (savedBase.isNotEmpty) _api.baseUrl = savedBase;
+    if (savedMedia.isNotEmpty) _api.mediaUrl = savedMedia;
+
     if (_loggedIn) _startPolling();
     notifyListeners();
   }
@@ -55,12 +57,18 @@ class AppProvider extends ChangeNotifier {
   // ────────────────────────────────────────
   // AUTH
   // ────────────────────────────────────────
-  Future<bool> login(String username, String password, String serverUrl) async {
-    // Kiểm tra credentials từ SharedPreferences (không phải hardcode)
+  Future<bool> login(
+    String username,
+    String password,
+    String serverUrl,
+    String mediaUrl,
+  ) async {
     final ok = await _auth.checkCredentials(username, password);
     if (!ok) return false;
 
     _api.baseUrl = serverUrl;
+    _api.mediaUrl = mediaUrl;
+
     final st = await _api.fetchStatus();
     if (st == null) return false;
 
@@ -71,6 +79,7 @@ class AppProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kPrefIsLoggedIn, true);
     await prefs.setString(kPrefBaseUrl, serverUrl);
+    await prefs.setString(kPrefMediaUrl, mediaUrl);
 
     _startPolling();
     notifyListeners();
@@ -91,7 +100,6 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Gọi sau khi đổi username để cập nhật display
   Future<void> refreshUsername() async {
     _username = await _auth.getUsername();
     notifyListeners();
@@ -101,6 +109,13 @@ class AppProvider extends ChangeNotifier {
     _api.baseUrl = url;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(kPrefBaseUrl, url);
+    notifyListeners();
+  }
+
+  Future<void> updateMediaUrl(String url) async {
+    _api.mediaUrl = url;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(kPrefMediaUrl, url);
     notifyListeners();
   }
 
