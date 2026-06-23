@@ -4,36 +4,33 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/constants.dart';
 import '../models/sensor_data.dart';
-import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/firebase_service.dart';
 import '../services/notification_service.dart';
 
 class AppProvider extends ChangeNotifier {
-  final ApiService _api = ApiService();
   final AuthService _auth = AuthService.instance;
+  final FirebaseService _fb = FirebaseService.instance;
 
   bool _loggedIn = false;
-  String _username = '';
   bool _connected = false;
+  String _username = '';
 
   SensorStatus _status = SensorStatus.empty();
   SensorHistory _history = SensorHistory.empty();
 
   bool get loggedIn => _loggedIn;
-  String get username => _username;
   bool get connected => _connected;
+  String get username => _username;
 
   SensorStatus get status => _status;
   SensorHistory get history => _history;
 
-  String get baseUrl => _api.baseUrl;
-  String get mediaUrl => _api.mediaUrl;
-  String get whepUrl => _api.whepUrl;
-  bool get isMediaConfigured => _api.isMediaConfigured;
+  // Firebase stream subscriptions
+  StreamSubscription? _statusSub;
+  StreamSubscription? _historySub;
 
-  Timer? _statusTimer;
-  Timer? _historyTimer;
-
+  // Alert dedup
   String? _lastNotifiedAlert;
   int _lastNotifiedTs = 0;
 
@@ -44,50 +41,30 @@ class AppProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _loggedIn = prefs.getBool(kPrefIsLoggedIn) ?? false;
     _username = await _auth.getUsername();
-
-    final savedBase = prefs.getString(kPrefBaseUrl) ?? '';
-    final savedMedia = prefs.getString(kPrefMediaUrl) ?? '';
-    if (savedBase.isNotEmpty) _api.baseUrl = savedBase;
-    if (savedMedia.isNotEmpty) _api.mediaUrl = savedMedia;
-
-    if (_loggedIn) _startPolling();
+    if (_loggedIn) _startStreams();
     notifyListeners();
   }
 
   // ────────────────────────────────────────
   // AUTH
   // ────────────────────────────────────────
-  Future<bool> login(
-    String username,
-    String password,
-    String serverUrl,
-    String mediaUrl,
-  ) async {
+  Future<bool> login(String username, String password) async {
     final ok = await _auth.checkCredentials(username, password);
     if (!ok) return false;
 
-    _api.baseUrl = serverUrl;
-    _api.mediaUrl = mediaUrl;
-
-    final st = await _api.fetchStatus();
-    if (st == null) return false;
-
     _loggedIn = true;
     _username = username;
-    _status = st;
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kPrefIsLoggedIn, true);
-    await prefs.setString(kPrefBaseUrl, serverUrl);
-    await prefs.setString(kPrefMediaUrl, mediaUrl);
 
-    _startPolling();
+    _startStreams();
     notifyListeners();
     return true;
   }
 
   Future<void> logout() async {
-    _stopPolling();
+    _stopStreams();
     await NotificationService.instance.cancelAll();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kPrefIsLoggedIn, false);
@@ -105,78 +82,69 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateServerUrl(String url) async {
-    _api.baseUrl = url;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(kPrefBaseUrl, url);
-    notifyListeners();
-  }
-
-  Future<void> updateMediaUrl(String url) async {
-    _api.mediaUrl = url;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(kPrefMediaUrl, url);
-    notifyListeners();
-  }
-
   // ────────────────────────────────────────
-  // POLLING
+  // FIREBASE STREAMS
   // ────────────────────────────────────────
-  void _startPolling() {
-    _statusTimer?.cancel();
-    _historyTimer?.cancel();
-    _statusTimer = Timer.periodic(kPollInterval, (_) => _pollStatus());
-    _historyTimer = Timer.periodic(kHistoryInterval, (_) => _pollHistory());
-    _pollStatus();
-    _pollHistory();
+  void _startStreams() {
+    _stopStreams();
+
+    // Status stream — real-time
+    _statusSub = _fb.statusStream.listen(
+      (status) {
+        _connected = true;
+        _handleAlert(status);
+        _status = status;
+        notifyListeners();
+      },
+      onError: (_) {
+        _connected = false;
+        notifyListeners();
+      },
+    );
+
+    // History stream — cập nhật khi Pi push mới
+    _historySub = _fb.historyStream.listen(
+      (history) {
+        _history = history;
+        notifyListeners();
+      },
+      onError: (_) {},
+    );
   }
 
-  void _stopPolling() {
-    _statusTimer?.cancel();
-    _historyTimer?.cancel();
+  void _stopStreams() {
+    _statusSub?.cancel();
+    _historySub?.cancel();
+    _statusSub = null;
+    _historySub = null;
   }
 
-  Future<void> _pollStatus() async {
-    final st = await _api.fetchStatus();
-    if (st == null) {
-      _connected = false;
-    } else {
-      _connected = true;
-      if (st.fallDetected &&
-          (st.alert == 'WARNING' || st.alert == 'CRITICAL')) {
-        final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        final newAlert = st.alert != _lastNotifiedAlert;
-        final cooldown = (now - _lastNotifiedTs) >= 30;
-        if (newAlert || cooldown) {
-          _lastNotifiedAlert = st.alert;
-          _lastNotifiedTs = now;
-          final crit = st.alert == 'CRITICAL';
-          NotificationService.instance.showAlert(
-            id: crit ? 1 : 2,
-            title: crit ? '🚨 TÉ NGÃ NGHIÊM TRỌNG!' : '⚠️ Phát hiện té ngã',
-            body:
-                'HR: ${st.heartRate} bpm  |  SpO2: ${st.spo2}%  |  ${st.alert}',
-          );
-        }
-      } else if (!st.fallDetected) {
-        _lastNotifiedAlert = null;
-      }
-      _status = st;
+  void _handleAlert(SensorStatus st) {
+    if (!st.fallDetected) {
+      _lastNotifiedAlert = null;
+      return;
     }
-    notifyListeners();
-  }
+    if (st.alert != 'WARNING' && st.alert != 'CRITICAL') return;
 
-  Future<void> _pollHistory() async {
-    final h = await _api.fetchHistory();
-    if (h != null) {
-      _history = h;
-      notifyListeners();
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final newAlert = st.alert != _lastNotifiedAlert;
+    final cooldown = (now - _lastNotifiedTs) >= 30;
+
+    if (newAlert || cooldown) {
+      _lastNotifiedAlert = st.alert;
+      _lastNotifiedTs = now;
+      final crit = st.alert == 'CRITICAL';
+      NotificationService.instance.showAlert(
+        id: crit ? 1 : 2,
+        title: crit ? '🚨 TÉ NGÃ NGHIÊM TRỌNG!' : '⚠️ Phát hiện té ngã',
+        body: 'HR: ${st.heartRate} bpm | SpO2: ${st.spo2}% | ${st.alert}',
+      );
     }
   }
 
   @override
   void dispose() {
-    _stopPolling();
+    _stopStreams();
     super.dispose();
   }
 }

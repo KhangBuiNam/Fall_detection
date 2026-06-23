@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "552410024246",
+    "firebase_url": "https://fall-detection-nonti-default-rtdb.firebaseio.com",
+    "project_id": "fall-detection-nonti",
+    "storage_bucket": "fall-detection-nonti.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:552410024246:android:1438302773337a5c8a8b97",
+        "android_client_info": {
+          "package_name": "com.example.fall_detection"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBTyOE9Z3r7isH7uumvlNML0drPdrVW840"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

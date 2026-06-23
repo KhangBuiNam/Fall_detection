@@ -20,6 +20,9 @@ dependencies:
 
   # WebRTC — stream từ MediaMTX qua WHEP
   flutter_webrtc: ^0.14.0
+  # Firebase
+  firebase_core: ^3.3.0
+  firebase_database: ^11.1.0
 
 dev_dependencies:
   flutter_test:

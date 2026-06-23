@@ -52,12 +52,25 @@ class SensorHistory {
   });
 
   factory SensorHistory.fromJson(Map<String, dynamic> j) {
-    List<int> toIntList(dynamic raw) =>
-        (raw as List?)?.map((e) => (e as num).toInt()).toList() ?? [];
+    List<int> toList(dynamic raw) {
+      if (raw == null) return [];
+      if (raw is List) {
+        return raw.map((e) => (e as num).toInt()).toList();
+      }
+      // Firebase RTDB trả về Map khi array có null gaps
+      if (raw is Map) {
+        final entries = raw.entries.toList()
+          ..sort((a, b) => int.parse(a.key.toString())
+              .compareTo(int.parse(b.key.toString())));
+        return entries.map((e) => (e.value as num).toInt()).toList();
+      }
+      return [];
+    }
+
     return SensorHistory(
-      heartRates: toIntList(j['heart_rate']),
-      spo2s: toIntList(j['spo2']),
-      timestamps: toIntList(j['timestamps']),
+      heartRates: toList(j['heart_rate']),
+      spo2s: toList(j['spo2']),
+      timestamps: toList(j['timestamps']),
     );
   }
 

@@ -1,4 +1,5 @@
 // lib/screens/login_screen.dart
+// Chỉ username + password — không cần nhập URL nào cả
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/app_theme.dart';
@@ -15,8 +16,6 @@ class _LoginScreenState extends State<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _userCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
-  final _serverCtrl = TextEditingController();
-  final _mediaCtrl = TextEditingController();
 
   bool _obscure = true;
   bool _loading = false;
@@ -36,10 +35,6 @@ class _LoginScreenState extends State<LoginScreen>
         .animate(
             CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
-
-    final prov = context.read<AppProvider>();
-    if (prov.baseUrl.isNotEmpty) _serverCtrl.text = prov.baseUrl;
-    if (prov.mediaUrl.isNotEmpty) _mediaCtrl.text = prov.mediaUrl;
   }
 
   @override
@@ -47,8 +42,6 @@ class _LoginScreenState extends State<LoginScreen>
     _animCtrl.dispose();
     _userCtrl.dispose();
     _passCtrl.dispose();
-    _serverCtrl.dispose();
-    _mediaCtrl.dispose();
     super.dispose();
   }
 
@@ -62,16 +55,11 @@ class _LoginScreenState extends State<LoginScreen>
     final ok = await context.read<AppProvider>().login(
           _userCtrl.text.trim(),
           _passCtrl.text,
-          _serverCtrl.text.trim(),
-          _mediaCtrl.text.trim(),
         );
 
     if (!mounted) return;
     setState(() => _loading = false);
-    if (!ok) {
-      setState(() => _error =
-          'Invalid credentials or server unreachable.\nCheck URLs & try again.');
-    }
+    if (!ok) setState(() => _error = 'Invalid username or password.');
   }
 
   @override
@@ -100,8 +88,8 @@ class _LoginScreenState extends State<LoginScreen>
                       children: [
                         // Logo
                         Container(
-                          width: 80,
-                          height: 80,
+                          width: 88,
+                          height: 88,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             gradient: const LinearGradient(
@@ -110,31 +98,32 @@ class _LoginScreenState extends State<LoginScreen>
                             boxShadow: [
                               BoxShadow(
                                 color: const Color(0xFF00C6FF).withOpacity(0.4),
-                                blurRadius: 24,
+                                blurRadius: 28,
                                 spreadRadius: 4,
                               )
                             ],
                           ),
                           child: const Icon(Icons.health_and_safety_rounded,
-                              size: 44, color: Colors.white),
+                              size: 46, color: Colors.white),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 22),
                         Text('CareWatch',
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineMedium
                                 ?.copyWith(
-                                  color: AppTheme.textPrim,
-                                  fontWeight: FontWeight.w700,
-                                )),
+                                    color: AppTheme.textPrim,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.3)),
                         const SizedBox(height: 6),
                         Text('Patient Monitoring System',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(color: AppTheme.textSec)),
-                        const SizedBox(height: 36),
+                        const SizedBox(height: 40),
 
+                        // Card
                         Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
@@ -143,78 +132,32 @@ class _LoginScreenState extends State<LoginScreen>
                             border: Border.all(
                                 color: AppTheme.accent.withOpacity(0.15)),
                           ),
-                          child: Column(
-                            children: [
-                              // ── Server URLs section ──
-                              _label('Server URLs'),
-                              const SizedBox(height: 10),
-                              _buildField(
-                                controller: _serverCtrl,
-                                label: 'Flask API URL (Tailscale)',
-                                hint: 'http://100.x.x.x:5000',
-                                icon: Icons.dns_rounded,
-                                validator: (v) {
-                                  if (v == null || v.isEmpty)
-                                    return 'Enter API URL';
-                                  if (!v.startsWith('http'))
-                                    return 'Must start with http://';
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 12),
-                              _buildField(
-                                controller: _mediaCtrl,
-                                label: 'MediaMTX URL (Tailscale)',
-                                hint: 'http://100.x.x.x:8889',
-                                icon: Icons.videocam_rounded,
-                                validator: (v) {
-                                  if (v == null || v.isEmpty)
-                                    return 'Enter MediaMTX URL';
-                                  if (!v.startsWith('http'))
-                                    return 'Must start with http://';
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 20),
-
-                              // ── Credentials section ──
-                              _label('Credentials'),
-                              const SizedBox(height: 10),
-                              _buildField(
-                                controller: _userCtrl,
-                                label: 'Username',
+                          child: Column(children: [
+                            _field(_userCtrl, 'Username', Icons.person_rounded,
                                 hint: 'caregiver',
-                                icon: Icons.person_rounded,
-                                validator: (v) => (v?.isEmpty ?? true)
+                                validator: (v) => v?.isEmpty ?? true
                                     ? 'Enter username'
-                                    : null,
-                              ),
-                              const SizedBox(height: 12),
-                              _buildField(
-                                controller: _passCtrl,
-                                label: 'Password',
-                                icon: Icons.lock_rounded,
+                                    : null),
+                            const SizedBox(height: 16),
+                            _field(_passCtrl, 'Password', Icons.lock_rounded,
                                 obscure: _obscure,
                                 suffix: IconButton(
-                                  icon: Icon(
-                                    _obscure
-                                        ? Icons.visibility_rounded
-                                        : Icons.visibility_off_rounded,
-                                    color: AppTheme.textSec,
-                                    size: 20,
-                                  ),
-                                  onPressed: () =>
-                                      setState(() => _obscure = !_obscure),
-                                ),
-                                validator: (v) => (v?.isEmpty ?? true)
+                                    icon: Icon(
+                                        _obscure
+                                            ? Icons.visibility_rounded
+                                            : Icons.visibility_off_rounded,
+                                        color: AppTheme.textSec,
+                                        size: 20),
+                                    onPressed: () =>
+                                        setState(() => _obscure = !_obscure)),
+                                validator: (v) => v?.isEmpty ?? true
                                     ? 'Enter password'
-                                    : null,
-                              ),
+                                    : null),
 
-                              // Error
-                              if (_error != null) ...[
-                                const SizedBox(height: 14),
-                                Container(
+                            // Error
+                            if (_error != null) ...[
+                              const SizedBox(height: 14),
+                              Container(
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: AppTheme.critical.withOpacity(0.12),
@@ -223,78 +166,77 @@ class _LoginScreenState extends State<LoginScreen>
                                         color:
                                             AppTheme.critical.withOpacity(0.3)),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.error_outline,
-                                          color: AppTheme.critical, size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(
+                                  child: Row(children: [
+                                    const Icon(Icons.error_outline,
+                                        color: AppTheme.critical, size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
                                         child: Text(_error!,
                                             style: const TextStyle(
                                                 color: AppTheme.critical,
-                                                fontSize: 12)),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 24),
+                                                fontSize: 12))),
+                                  ])),
+                            ],
+                            const SizedBox(height: 24),
 
-                              // Sign in button
-                              SizedBox(
+                            // Sign in button
+                            SizedBox(
                                 width: double.infinity,
                                 height: 52,
                                 child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(colors: [
                                         Color(0xFF00C6FF),
                                         Color(0xFF0072FF)
+                                      ]),
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [
+                                        BoxShadow(
+                                            color: const Color(0xFF00C6FF)
+                                                .withOpacity(0.35),
+                                            blurRadius: 16,
+                                            offset: const Offset(0, 6))
                                       ],
                                     ),
-                                    borderRadius: BorderRadius.circular(14),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF00C6FF)
-                                            .withOpacity(0.35),
-                                        blurRadius: 16,
-                                        offset: const Offset(0, 6),
-                                      )
-                                    ],
-                                  ),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.transparent,
-                                      shadowColor: Colors.transparent,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(14)),
-                                    ),
-                                    onPressed: _loading ? null : _submit,
-                                    child: _loading
-                                        ? const SizedBox(
-                                            width: 22,
-                                            height: 22,
-                                            child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2.5))
-                                        : const Text('Sign In',
-                                            style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.white)),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                                    child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.transparent,
+                                            shadowColor: Colors.transparent,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(14))),
+                                        onPressed: _loading ? null : _submit,
+                                        child: _loading
+                                            ? const SizedBox(
+                                                width: 22,
+                                                height: 22,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        color: Colors.white,
+                                                        strokeWidth: 2.5))
+                                            : const Text('Sign In',
+                                                style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white))))),
+                          ]),
                         ),
                         const SizedBox(height: 24),
-                        Text('WebRTC · MediaMTX · Tailscale',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: AppTheme.textSec)),
+
+                        // Firebase badge
+                        Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.cloud_done_rounded,
+                                  color: AppTheme.normal.withOpacity(0.7),
+                                  size: 14),
+                              const SizedBox(width: 6),
+                              Text('Powered by Firebase Realtime Database',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: AppTheme.textSec)),
+                            ]),
                       ],
                     ),
                   ),
@@ -307,51 +249,35 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _label(String text) => Align(
-        alignment: Alignment.centerLeft,
-        child: Text(text.toUpperCase(),
-            style: const TextStyle(
-                color: AppTheme.textSec,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2)),
-      );
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    String? hint,
-    required IconData icon,
-    bool obscure = false,
-    Widget? suffix,
-    String? Function(String?)? validator,
-  }) =>
+  Widget _field(TextEditingController ctrl, String label, IconData icon,
+          {String? hint,
+          bool obscure = false,
+          Widget? suffix,
+          String? Function(String?)? validator}) =>
       TextFormField(
-        controller: controller,
-        obscureText: obscure,
-        style: const TextStyle(color: AppTheme.textPrim, fontSize: 15),
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          hintStyle: const TextStyle(color: AppTheme.textSec, fontSize: 13),
-          labelStyle: const TextStyle(color: AppTheme.textSec, fontSize: 13),
-          prefixIcon: Icon(icon, color: AppTheme.accent, size: 20),
-          suffixIcon: suffix,
-          filled: true,
-          fillColor: AppTheme.surface,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide:
-                BorderSide(color: AppTheme.accent.withOpacity(0.7), width: 1.5),
-          ),
-          errorStyle: const TextStyle(color: AppTheme.critical, fontSize: 11),
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-        ),
-        validator: validator,
-      );
+          controller: ctrl,
+          obscureText: obscure,
+          style: const TextStyle(color: AppTheme.textPrim, fontSize: 15),
+          decoration: InputDecoration(
+              labelText: label,
+              hintText: hint,
+              hintStyle: const TextStyle(color: AppTheme.textSec, fontSize: 13),
+              labelStyle:
+                  const TextStyle(color: AppTheme.textSec, fontSize: 13),
+              prefixIcon: Icon(icon, color: AppTheme.accent, size: 20),
+              suffixIcon: suffix,
+              filled: true,
+              fillColor: AppTheme.surface,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                      color: AppTheme.accent.withOpacity(0.7), width: 1.5)),
+              errorStyle:
+                  const TextStyle(color: AppTheme.critical, fontSize: 11),
+              contentPadding:
+                  const EdgeInsets.symmetric(vertical: 16, horizontal: 16)),
+          validator: validator);
 }

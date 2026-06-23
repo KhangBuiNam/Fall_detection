@@ -1,6 +1,7 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'core/app_theme.dart';
 import 'providers/app_provider.dart';
@@ -16,7 +17,10 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Local notification — không cần Firebase
+  // Firebase init (cần google-services.json trong android/app/)
+  await Firebase.initializeApp();
+
+  // Local notifications
   await NotificationService.instance.init();
 
   runApp(
@@ -29,21 +33,19 @@ void main() async {
 
 class CareWatchApp extends StatelessWidget {
   const CareWatchApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CareWatch',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      home: const _RootRouter(),
+      home: const _Router(),
     );
   }
 }
 
-class _RootRouter extends StatelessWidget {
-  const _RootRouter();
-
+class _Router extends StatelessWidget {
+  const _Router();
   @override
   Widget build(BuildContext context) {
     final loggedIn = context.select<AppProvider, bool>((p) => p.loggedIn);
