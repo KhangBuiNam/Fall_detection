@@ -26,16 +26,15 @@ class AppProvider extends ChangeNotifier {
   SensorStatus get status => _status;
   SensorHistory get history => _history;
 
-  // Firebase stream subscriptions
   StreamSubscription? _statusSub;
   StreamSubscription? _historySub;
 
-  // Alert dedup
+  // Chống lặp thông báo
   String? _lastNotifiedAlert;
   int _lastNotifiedTs = 0;
 
   // ────────────────────────────────────────
-  // INIT
+  // KHỞI TẠO
   // ────────────────────────────────────────
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -46,7 +45,7 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ────────────────────────────────────────
-  // AUTH
+  // ĐĂNG NHẬP / ĐĂNG XUẤT
   // ────────────────────────────────────────
   Future<bool> login(String username, String password) async {
     final ok = await _auth.checkCredentials(username, password);
@@ -83,12 +82,11 @@ class AppProvider extends ChangeNotifier {
   }
 
   // ────────────────────────────────────────
-  // FIREBASE STREAMS
+  // LUỒNG DỮ LIỆU FIREBASE (real-time)
   // ────────────────────────────────────────
   void _startStreams() {
     _stopStreams();
 
-    // Status stream — real-time
     _statusSub = _fb.statusStream.listen(
       (status) {
         _connected = true;
@@ -102,7 +100,6 @@ class AppProvider extends ChangeNotifier {
       },
     );
 
-    // History stream — cập nhật khi Pi push mới
     _historySub = _fb.historyStream.listen(
       (history) {
         _history = history;
@@ -119,28 +116,66 @@ class AppProvider extends ChangeNotifier {
     _historySub = null;
   }
 
+  // ────────────────────────────────────────
+  // XỬ LÝ CẢNH BÁO — theo đúng thứ tự ưu tiên của Pi
+  //   SOS > CRITICAL/WARNING (té ngã) > sinh hiệu
+  // ────────────────────────────────────────
   void _handleAlert(SensorStatus st) {
-    if (!st.fallDetected) {
-      _lastNotifiedAlert = null;
+    // SOS có mức ưu tiên cao nhất — thông báo bất kể fallDetected
+    if (st.sos) {
+      _notifyIfNeeded(
+        key: 'SOS',
+        id: 0,
+        title: 'KHẨN CẤP — Nút SOS được nhấn!',
+        body: 'Bệnh nhân yêu cầu trợ giúp ngay. '
+            'Nhịp tim ${st.heartRate} bpm, SpO2 ${st.spo2}%.',
+      );
       return;
     }
-    if (st.alert != 'WARNING' && st.alert != 'CRITICAL') return;
 
-    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final newAlert = st.alert != _lastNotifiedAlert;
-    final cooldown = (now - _lastNotifiedTs) >= 30;
-
-    if (newAlert || cooldown) {
-      _lastNotifiedAlert = st.alert;
-      _lastNotifiedTs = now;
+    // Té ngã đã xác nhận
+    if (st.fallDetected && (st.alert == 'WARNING' || st.alert == 'CRITICAL')) {
       final crit = st.alert == 'CRITICAL';
-      NotificationService.instance.showAlert(
+      _notifyIfNeeded(
+        key: st.alert,
         id: crit ? 1 : 2,
-        title: crit ? '🚨 TÉ NGÃ NGHIÊM TRỌNG!' : '⚠️ Phát hiện té ngã',
-        body: 'HR: ${st.heartRate} bpm | SpO2: ${st.spo2}% | ${st.alert}',
+        title: crit ? 'TÉ NGÃ NGHIÊM TRỌNG!' : 'Phát hiện té ngã',
+        body:
+            'Nhịp tim ${st.heartRate} bpm · SpO2 ${st.spo2}% · ${_alertVi(st.alert)}',
       );
+      return;
+    }
+
+    // Không còn cảnh báo — reset để lần sau báo lại
+    _lastNotifiedAlert = null;
+  }
+
+  void _notifyIfNeeded({
+    required String key,
+    required int id,
+    required String title,
+    required String body,
+  }) {
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final isNew = key != _lastNotifiedAlert;
+    final cooldownPassed = (now - _lastNotifiedTs) >= 30;
+
+    if (isNew || cooldownPassed) {
+      _lastNotifiedAlert = key;
+      _lastNotifiedTs = now;
+      NotificationService.instance.showAlert(id: id, title: title, body: body);
     }
   }
+
+  // Chuyển mã cảnh báo sang tiếng Việt
+  static String _alertVi(String alert) => switch (alert) {
+        'SOS' => 'KHẨN CẤP',
+        'CRITICAL' => 'NGUY CẤP',
+        'WARNING' => 'CẢNH BÁO',
+        'CHECKING' => 'ĐANG KIỂM TRA',
+        'FALSE_ALARM' => 'BÁO NHẦM',
+        _ => 'BÌNH THƯỜNG',
+      };
 
   @override
   void dispose() {

@@ -2,18 +2,26 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color bg = Color(0xFF0A0E1A);
-  static const Color surface = Color(0xFF131929);
-  static const Color card = Color(0xFF1C2438);
-  static const Color accent = Color(0xFF00C6FF);
-  static const Color accentSoft = Color(0xFF0072FF);
-  static const Color textPrim = Color(0xFFEAF0FF);
-  static const Color textSec = Color(0xFF8899BB);
-  static const Color critical = Color(0xFFFF3B30);
-  static const Color warning = Color(0xFFFF9F0A);
-  static const Color normal = Color(0xFF30D158);
-  static const Color hrLine = Color(0xFFFF6B9D);
-  static const Color spo2Line = Color(0xFF00C6FF);
+  // Nền tối dịu, không quá xanh neon
+  static const Color bg = Color(0xFF121620);
+  static const Color surface = Color(0xFF1A1F2B);
+  static const Color card = Color(0xFF222836);
+
+  // Màu nhấn xanh dương trầm (thay vì cyan neon 0xFF00C6FF)
+  static const Color accent = Color(0xFF3D7EFF);
+  static const Color accentSoft = Color(0xFF2D5FCC);
+
+  static const Color textPrim = Color(0xFFE6EAF2);
+  static const Color textSec = Color(0xFF94A0B8);
+
+  // Màu trạng thái — dịu hơn, gần với chuẩn y tế
+  static const Color critical = Color(0xFFE5484D);
+  static const Color warning = Color(0xFFE8A53D);
+  static const Color normal = Color(0xFF3DB068);
+
+  // Màu biểu đồ
+  static const Color hrLine = Color(0xFFE05D8A);
+  static const Color spo2Line = Color(0xFF3D7EFF);
 
   static ThemeData get theme => ThemeData(
         useMaterial3: true,
@@ -23,15 +31,15 @@ class AppTheme {
           primary: accent,
           secondary: accentSoft,
         ),
-        fontFamily: 'SF Pro Display',
+        // Dùng font hệ thống — không phụ thuộc font Apple
         appBarTheme: const AppBarTheme(
           backgroundColor: bg,
           elevation: 0,
+          centerTitle: false,
           titleTextStyle: TextStyle(
             color: textPrim,
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.3,
           ),
           iconTheme: IconThemeData(color: textPrim),
         ),
