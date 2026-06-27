@@ -17,26 +17,26 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Firebase init (cần google-services.json trong android/app/)
+  // Khởi tạo Firebase (cần google-services.json trong android/app/)
   await Firebase.initializeApp();
 
-  // Local notifications
+  // Thông báo cục bộ
   await NotificationService.instance.init();
 
   runApp(
     ChangeNotifierProvider(
       create: (_) => AppProvider()..init(),
-      child: const CareWatchApp(),
+      child: const FallMonitorApp(),
     ),
   );
 }
 
-class CareWatchApp extends StatelessWidget {
-  const CareWatchApp({super.key});
+class FallMonitorApp extends StatelessWidget {
+  const FallMonitorApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CareWatch',
+      title: 'Giám sát té ngã',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       home: const _Router(),

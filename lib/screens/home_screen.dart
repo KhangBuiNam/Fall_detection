@@ -25,7 +25,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final alert = context.select<AppProvider, String>((p) => p.status.alert);
+    final sos = context.select<AppProvider, bool>((p) => p.status.sos);
     final connected = context.select<AppProvider, bool>((p) => p.connected);
+
+    // Hiện chấm đỏ khi có SOS hoặc cảnh báo té ngã
+    final showDot =
+        connected && (sos || alert == 'CRITICAL' || alert == 'WARNING');
+    final dotColor =
+        sos || alert == 'CRITICAL' ? AppTheme.critical : AppTheme.warning;
 
     return Scaffold(
       body: IndexedStack(index: _idx, children: _pages),
@@ -33,8 +40,8 @@ class _HomeScreenState extends State<HomeScreen> {
         decoration: BoxDecoration(
           color: AppTheme.surface,
           border: Border(
-              top: BorderSide(
-                  color: AppTheme.accent.withOpacity(0.12), width: 1)),
+            top: BorderSide(color: AppTheme.accent.withOpacity(0.12), width: 1),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _idx,
@@ -48,44 +55,38 @@ class _HomeScreenState extends State<HomeScreen> {
               const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontSize: 11),
           items: [
-            // Dashboard — dot khi có alert
             BottomNavigationBarItem(
-              icon: Stack(clipBehavior: Clip.none, children: [
-                const Icon(Icons.monitor_heart_outlined),
-                if ((alert == 'CRITICAL' || alert == 'WARNING') && connected)
-                  Positioned(
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  const Icon(Icons.monitor_heart_outlined),
+                  if (showDot)
+                    Positioned(
                       right: -4,
                       top: -4,
                       child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: alert == 'CRITICAL'
-                                ? AppTheme.critical
-                                : AppTheme.warning,
-                            boxShadow: [
-                              BoxShadow(
-                                  color: (alert == 'CRITICAL'
-                                          ? AppTheme.critical
-                                          : AppTheme.warning)
-                                      .withOpacity(0.5),
-                                  blurRadius: 6)
-                            ],
-                          ))),
-              ]),
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: dotColor,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               activeIcon: const Icon(Icons.monitor_heart),
-              label: 'Dashboard',
+              label: 'Giám sát',
             ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.show_chart_outlined),
               activeIcon: Icon(Icons.show_chart),
-              label: 'Charts',
+              label: 'Biểu đồ',
             ),
             const BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined),
               activeIcon: Icon(Icons.settings),
-              label: 'Settings',
+              label: 'Cài đặt',
             ),
           ],
         ),

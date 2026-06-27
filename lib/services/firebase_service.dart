@@ -1,7 +1,7 @@
 // lib/services/firebase_service.dart
 //
 // Đọc dữ liệu từ Firebase Realtime Database.
-// Pi write vào /fall_detection/status và /fall_detection/history
+// Raspberry Pi ghi vào /fall_detection/status và /fall_detection/history.
 // Flutter lắng nghe stream real-time — không cần poll HTTP.
 
 import 'package:firebase_database/firebase_database.dart';
@@ -13,7 +13,7 @@ class FirebaseService {
 
   final _db = FirebaseDatabase.instance;
 
-  // ── Stream trạng thái hiện tại (real-time) ──
+  // Stream trạng thái hiện tại (real-time)
   Stream<SensorStatus> get statusStream {
     return _db.ref('fall_detection/status').onValue.map((event) {
       final data = event.snapshot.value;
@@ -27,7 +27,7 @@ class FirebaseService {
     });
   }
 
-  // ── Lấy history 1 lần (không cần real-time) ──
+  // Lấy lịch sử 1 lần
   Future<SensorHistory> fetchHistory() async {
     try {
       final snap = await _db.ref('fall_detection/history').get();
@@ -41,7 +41,7 @@ class FirebaseService {
     }
   }
 
-  // ── Stream history (cập nhật mỗi khi Pi push mới) ──
+  // Stream lịch sử (cập nhật mỗi khi Pi push mới)
   Stream<SensorHistory> get historyStream {
     return _db.ref('fall_detection/history').onValue.map((event) {
       final data = event.snapshot.value;

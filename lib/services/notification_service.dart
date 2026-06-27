@@ -1,6 +1,5 @@
 // lib/services/notification_service.dart
-// Local notification thuần — không cần Firebase, không cần google-services.json
-// Hiện thông báo ngay khi app đang chạy foreground (polling detect fall)
+// Thông báo cục bộ — hiện ngay khi phát hiện té ngã.
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/foundation.dart';
@@ -13,7 +12,7 @@ class NotificationService {
   bool _ready = false;
 
   static const _channelId = 'fall_alert_channel';
-  static const _channelName = 'Fall Detection Alerts';
+  static const _channelName = 'Cảnh báo té ngã';
 
   Future<void> init() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -26,7 +25,6 @@ class NotificationService {
 
     await _plugin.initialize(settings);
 
-    // Tạo channel Android (importance MAX để vượt qua DND)
     const channel = AndroidNotificationChannel(
       _channelId,
       _channelName,
@@ -40,14 +38,13 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(channel);
 
-    // Xin quyền trên Android 13+
     await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.requestNotificationsPermission();
 
     _ready = true;
-    debugPrint('[NotificationService] Ready');
+    debugPrint('[NotificationService] San sang');
   }
 
   Future<void> showAlert({
@@ -66,7 +63,6 @@ class NotificationService {
         playSound: true,
         enableVibration: true,
         icon: '@mipmap/ic_launcher',
-        // Full-screen intent để hiện kể cả khi màn khoá
         fullScreenIntent: true,
       ),
       iOS: DarwinNotificationDetails(
@@ -77,7 +73,7 @@ class NotificationService {
     );
 
     await _plugin.show(id, title, body, details);
-    debugPrint('[NotificationService] Shown: $title');
+    debugPrint('[NotificationService] Da hien: $title');
   }
 
   Future<void> cancelAll() async {
